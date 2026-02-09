@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>翼龙面板文件管理器</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1a1a2e; color: #eee; min-height: 100vh; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        h1 { text-align: center; margin-bottom: 20px; color: #00d4ff; }
+        
+        /* 配置面板 */
+        .config-panel { background: #16213e; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
+        .config-panel h2 { margin-bottom: 15px; font-size: 18px; }
+        .config-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+        .config-group { flex: 1; min-width: 200px; }
+        .config-group label { display: block; margin-bottom: 5px; font-size: 14px; color: #aaa; }
+        .config-group input { width: 100%; padding: 10px; border: 1px solid #333; border-radius: 5px; background: #0f0f23; color: #fff; }
+        .btn { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; transition: all 0.3s; }
+        .btn-primary { background: #00d4ff; color: #000; }
+        .btn-primary:hover { background: #00a8cc; }
+        .btn-success { background: #00c853; color: #fff; }
+        .btn-danger { background: #ff1744; color: #fff; }
+        .btn-secondary { background: #666; color: #fff; }
+        
+        /* 工具栏 */
+        .toolbar { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center; }
+        .breadcrumb { background: #16213e; padding: 10px 15px; border-radius: 5px; flex: 1; }
+        .breadcrumb span { cursor: pointer; color: #00d4ff; }
+        .breadcrumb span:hover { text-decoration: underline; }
+        
+        /* 文件列表 */
+        .file-manager { background: #16213e; border-radius: 10px; overflow: hidden; }
+        .file-header { display: grid; grid-template-columns: 40px 1fr 100px 150px 180px; padding: 15px; background: #0f3460; font-weight: bold; }
+        .file-item { display: grid; grid-template-columns: 40px 1fr 100px 150px 180px; padding: 12px 15px; border-bottom: 1px solid #333; align-items: center; }
+        .file-item:hover { background: #1f4068; }
+        .file-item.selected { background: #0f3460; }
+        .file-icon { font-size: 20px; }
+        .file-name { cursor: pointer; word-break: break-all; }
+        .file-name:hover { color: #00d4ff; }
+        .file-actions { display: flex; gap: 5px; }
+        .file-actions button { padding: 5px 10px; font-size: 12px; }
+        
+        /* 模态框 */
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 1000; }
+        .modal.active { display: flex; }
+        .modal-content { background: #16213e; padding: 25px; border-radius: 10px; width: 90%; max-width: 800px; max-height: 90vh; overflow: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-header h3 { color: #00d4ff; }
+        .close-btn { background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; }
+        .editor-textarea { width: 100%; height: 400px; background: #0f0f23; color: #0f0; border: 1px solid #333; border-radius: 5px; padding: 15px; font-family: monospace; font-size: 14px; resize: vertical; }
+        
+        /* 上传区域 */
+        .upload-zone { border: 2px dashed #00d4ff; border-radius: 10px; padding: 40px; text-align: center; margin-top: 20px; cursor: pointer; }
+        .upload-zone:hover { background: rgba(0,212,255,0.1); }
+        .upload-zone.dragover { background: rgba(0,212,255,0.2); }
+        
+        /* 消息提示 */
+        .toast { position: fixed; top: 20px; right: 20px; padding: 15px 25px; border-radius: 5px; color: #fff; z-index: 2000; animation: slideIn 0.3s; }
+        .toast.success { background: #00c853; }
+        .toast.error { background: #ff1744; }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        
+        /* 加载状态 */
+        .loading { text-align: center; padding: 50px; color: #666; }
+        .spinner { display: inline-block; width: 40px; height: 40px; border: 3px solid #333; border-top-color: #00d4ff; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* 复选框 */
+        input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🦖 翼龙面板文件管理器</h1>
+        
+        <!-- 配置面板 -->
+        <div class="config-panel">
+            <h2>⚙️ API 配置</h2>
+            <div class="config-row">
+                <div class="config-group">
+                    <label>API 地址</label>
+                    <input type="text" id="apiUrl" placeholder="https://panel.example.com/api/client/servers">
+                </div>
+                <div class="config-group">
+                    <label>Server ID</label>
+                    <input type="text" id="serverId" placeholder="abc123">
+                </div>
+                <div class="config-group">
+                    <label>API Key</label>
+                    <input type="password" id="apiKey" placeholder="ptlc_xxxxxx">
+                </div>
+                <button class="btn btn-primary" onclick="saveConfig()">保存配置</button>
+            </div>
+        </div>
+        
+        <!-- 工具栏 -->
+        <div class="toolbar">
+            <div class="breadcrumb" id="breadcrumb"></div>
+            <button class="btn btn-primary" onclick="refreshFiles()">🔄 刷新</button>
+            <button class="btn btn-success" onclick="showCreateFolder()">📁 新建文件夹</button>
+            <button class="btn btn-success" onclick="showCreateFile()">📄 新建文件</button>
+            <button class="btn btn-primary" onclick="showUpload()">⬆️ 上传</button>
+            <button class="btn btn-danger" onclick="deleteSelected()">🗑️ 删除选中</button>
+        </div>
+        
+        <!-- 文件列表 -->
+        <div class="file-manager">
+            <div class="file-header">
+                <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                <span>文件名</span>
+                <span>大小</span>
+                <span>修改时间</span>
+                <span>操作</span>
+            </div>
+            <div id="fileList">
+                <div class="loading"><div class="spinner"></div><p>请先配置 API...</p></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 编辑器模态框 -->
+    <div class="modal" id="editorModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="editorTitle">编辑文件</h3>
+                <button class="close-btn" onclick="closeEditor()">&times;</button>
+            </div>
+            <textarea class="editor-textarea" id="editorContent"></textarea>
+            <div style="margin-top: 15px; text-align: right;">
+                <button class="btn btn-secondary" onclick="closeEditor()">取消</button>
+                <button class="btn btn-primary" onclick="saveFile()">保存</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 上传模态框 -->
+    <div class="modal" id="uploadModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>上传文件</h3>
+                <button class="close-btn" onclick="closeUpload()">&times;</button>
+            </div>
+            <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+                <p>📁 点击或拖拽文件到此处上传</p>
+                <input type="file" id="fileInput" multiple style="display:none" onchange="handleFileSelect(event)">
+            </div>
+            <div id="uploadProgress" style="margin-top:15px"></div>
+        </div>
+    </div>
+    
+    <!-- 重命名/新建模态框 -->
+    <div class="modal" id="inputModal">
+        <div class="modal-content" style="max-width:400px">
+            <div class="modal-header">
+                <h3 id="inputTitle">输入</h3>
+                <button class="close-btn" onclick="closeInput()">&times;</button>
+            </div>
+            <input type="text" id="inputValue" style="width:100%;padding:10px;background:#0f0f23;border:1px solid #333;border-radius:5px;color:#fff;margin-bottom:15px">
+            <div style="text-align:right">
+                <button class="btn btn-secondary" onclick="closeInput()">取消</button>
+                <button class="btn btn-primary" id="inputConfirm">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPath = '/';
+        let currentEditFile = '';
+        let files = [];
+        
+        // 初始化
+        window.onload = async () => {
+            loadConfig();
+            setupDragDrop();
+        };
+        
+        // 从 localStorage 加载配置
+        function loadConfig() {
+            const saved = localStorage.getItem('ptero_config');
+            if (saved) {
+                try {
+                    const config = JSON.parse(saved);
+                    document.getElementById('apiUrl').value = config.api_url || '';
+                    document.getElementById('serverId').value = config.server_id || '';
+                    document.getElementById('apiKey').value = config.api_key || '';
+                    if (config.api_url && config.server_id && config.api_key) {
+                        refreshFiles();
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+        }
+        
+        // 保存配置到 localStorage
+        function saveConfig() {
+            const config = {
+                api_url: document.getElementById('apiUrl').value,
+                server_id: document.getElementById('serverId').value,
+                api_key: document.getElementById('apiKey').value
+            };
+            localStorage.setItem('ptero_config', JSON.stringify(config));
+            showToast('配置已保存到浏览器', 'success');
+            refreshFiles();
+        }
+        
+        // 获取配置
+        function getConfig() {
+            return {
+                api_url: document.getElementById('apiUrl').value,
+                server_id: document.getElementById('serverId').value,
+                api_key: document.getElementById('apiKey').value
+            };
+        }
+        
+        // 获取请求头
+        function getHeaders() {
+            const config = getConfig();
+            return {
+                'X-API-URL': config.api_url,
+                'X-Server-ID': config.server_id,
+                'X-API-Key': config.api_key
+            };
+        }
+        
+        // 刷新文件列表
+        async function refreshFiles() {
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+            
+            const config = getConfig();
+            if (!config.api_url || !config.server_id || !config.api_key) {
+                fileList.innerHTML = '<div class="loading"><p>请先配置 API...</p></div>';
+                return;
+            }
+            
+            try {
+                const resp = await fetch(`/api/files/list?directory=${encodeURIComponent(currentPath)}`, {
+                    headers: getHeaders()
+                });
+                const data = await resp.json();
+                
+                if (data.error) {
+                    fileList.innerHTML = `<div class="loading"><p style="color:#ff1744">❌ ${data.error}</p></div>`;
+                    return;
+                }
+                
+                files = data.data || [];
+                renderFiles();
+                updateBreadcrumb();
+            } catch (e) {
+                fileList.innerHTML = `<div class="loading"><p style="color:#ff1744">❌ ${e.message}</p></div>`;
+            }
+        }
+        
+        // 渲染文件列表
+        function renderFiles() {
+            const fileList = document.getElementById('fileList');
+            if (files.length === 0) {
+                fileList.innerHTML = '<div class="loading"><p>📂 文件夹为空</p></div>';
+                return;
+            }
+            
+            // 排序：文件夹在前
+            files.sort((a, b) => {
+                if (a.attributes.is_file !== b.attributes.is_file) {
+                    return a.attributes.is_file ? 1 : -1;
+                }
+                return a.attributes.name.localeCompare(b.attributes.name);
+            });
+            
+            fileList.innerHTML = files.map((file, idx) => {
+                const attr = file.attributes;
+                const icon = attr.is_file ? '📄' : '📁';
+                const size = attr.is_file ? formatSize(attr.size) : '-';
+                const time = new Date(attr.modified_at).toLocaleString();
+                const escapedName = attr.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                return `
+                    <div class="file-item" data-idx="${idx}">
+                        <input type="checkbox" class="file-checkbox" data-name="${escapedName}">
+                        <span class="file-name" onclick="handleClick(${idx})">${icon} ${attr.name}</span>
+                        <span>${size}</span>
+                        <span>${time}</span>
+                        <div class="file-actions">
+                            ${attr.is_file ? `<button class="btn btn-primary" onclick="editFile('${escapedName}')">编辑</button>` : ''}
+                            ${attr.is_file ? `<button class="btn btn-success" onclick="downloadFile('${escapedName}')">下载</button>` : ''}
+                            <button class="btn btn-secondary" onclick="renameFile('${escapedName}')">重命名</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // 格式化文件大小
+        function formatSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        // 更新面包屑
+        function updateBreadcrumb() {
+            const parts = currentPath.split('/').filter(p => p);
+            let html = `<span onclick="navigateTo('/')">/根目录</span>`;
+            let path = '';
+            for (const part of parts) {
+                path += '/' + part;
+                html += ` / <span onclick="navigateTo('${path}')">${part}</span>`;
+            }
+            document.getElementById('breadcrumb').innerHTML = html;
+        }
+        
+        // 导航到目录
+        function navigateTo(path) {
+            currentPath = path;
+            refreshFiles();
+        }
+        
+        // 点击处理
+        function handleClick(idx) {
+            const file = files[idx];
+            if (!file.attributes.is_file) {
+                currentPath = currentPath.replace(/\/$/, '') + '/' + file.attributes.name;
+                refreshFiles();
+            }
+        }
+        
+        // 编辑文件
+        async function editFile(name) {
+            const filePath = currentPath.replace(/\/$/, '') + '/' + name;
+            currentEditFile = filePath;
+            
+            try {
+                const resp = await fetch(`/api/files/contents?file=${encodeURIComponent(filePath)}`, {
+                    headers: getHeaders()
+                });
+                if (!resp.ok) {
+                    const err = await resp.json();
+                    showToast('读取失败: ' + (err.error || resp.statusText), 'error');
+                    return;
+                }
+                const content = await resp.text();
+                document.getElementById('editorTitle').textContent = '编辑: ' + name;
+                document.getElementById('editorContent').value = content;
+                document.getElementById('editorModal').classList.add('active');
+            } catch (e) {
+                showToast('读取失败: ' + e.message, 'error');
+            }
+        }
+        
+        // 保存文件
+        async function saveFile() {
+            const content = document.getElementById('editorContent').value;
+            try {
+                const resp = await fetch(`/api/files/write?file=${encodeURIComponent(currentEditFile)}`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: content
+                });
+                if (resp.ok) {
+                    showToast('保存成功', 'success');
+                    closeEditor();
+                } else {
+                    const err = await resp.json();
+                    showToast('保存失败: ' + (err.error || resp.statusText), 'error');
+                }
+            } catch (e) {
+                showToast('保存失败: ' + e.message, 'error');
+            }
+        }
+        
+        function closeEditor() {
+            document.getElementById('editorModal').classList.remove('active');
+        }
+        
+        // 下载文件
+        async function downloadFile(name) {
+            const filePath = currentPath.replace(/\/$/, '') + '/' + name;
+            try {
+                const resp = await fetch(`/api/files/download?file=${encodeURIComponent(filePath)}`, {
+                    headers: getHeaders()
+                });
+                const data = await resp.json();
+                if (data.attributes && data.attributes.url) {
+                    window.open(data.attributes.url, '_blank');
+                } else if (data.error) {
+                    showToast('下载失败: ' + data.error, 'error');
+                }
+            } catch (e) {
+                showToast('下载失败: ' + e.message, 'error');
+            }
+        }
+        
+        // 重命名文件
+        function renameFile(oldName) {
+            showInput('重命名', oldName, async (newName) => {
+                if (!newName || newName === oldName) return;
+                try {
+                    const resp = await fetch('/api/files/rename', {
+                        method: 'POST',
+                        headers: {...getHeaders(), 'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            root: currentPath,
+                            files: [{ from: oldName, to: newName }]
+                        })
+                    });
+                    if (resp.ok) {
+                        showToast('重命名成功', 'success');
+                        refreshFiles();
+                    } else {
+                        const err = await resp.json();
+                        showToast('重命名失败: ' + (err.error || resp.statusText), 'error');
+                    }
+                } catch (e) {
+                    showToast('重命名失败: ' + e.message, 'error');
+                }
+            });
+        }
+        
+        // 新建文件夹
+        function showCreateFolder() {
+            showInput('新建文件夹', '', async (name) => {
+                if (!name) return;
+                try {
+                    const resp = await fetch('/api/files/create-folder', {
+                        method: 'POST',
+                        headers: {...getHeaders(), 'Content-Type': 'application/json'},
+                        body: JSON.stringify({ root: currentPath, name: name })
+                    });
+                    if (resp.ok) {
+                        showToast('创建成功', 'success');
+                        refreshFiles();
+                    } else {
+                        const err = await resp.json();
+                        showToast('创建失败: ' + (err.error || resp.statusText), 'error');
+                    }
+                } catch (e) {
+                    showToast('创建失败: ' + e.message, 'error');
+                }
+            });
+        }
+        
+        // 新建文件
+        function showCreateFile() {
+            showInput('新建文件', '', async (name) => {
+                if (!name) return;
+                const filePath = currentPath.replace(/\/$/, '') + '/' + name;
+                try {
+                    const resp = await fetch(`/api/files/write?file=${encodeURIComponent(filePath)}`, {
+                        method: 'POST',
+                        headers: getHeaders(),
+                        body: ''
+                    });
+                    if (resp.ok) {
+                        showToast('创建成功', 'success');
+                        refreshFiles();
+                    } else {
+                        const err = await resp.json();
+                        showToast('创建失败: ' + (err.error || resp.statusText), 'error');
+                    }
+                } catch (e) {
+                    showToast('创建失败: ' + e.message, 'error');
+                }
+            });
+        }
+        
+        // 删除选中
+        async function deleteSelected() {
+            const checkboxes = document.querySelectorAll('.file-checkbox:checked');
+            const names = Array.from(checkboxes).map(cb => cb.dataset.name);
+            if (names.length === 0) {
+                showToast('请选择要删除的文件', 'error');
+                return;
+            }
+            if (!confirm(`确定删除 ${names.length} 个文件/文件夹？`)) return;
+            
+            try {
+                const resp = await fetch('/api/files/delete', {
+                    method: 'POST',
+                    headers: {...getHeaders(), 'Content-Type': 'application/json'},
+                    body: JSON.stringify({ root: currentPath, files: names })
+                });
+                if (resp.ok) {
+                    showToast('删除成功', 'success');
+                    refreshFiles();
+                } else {
+                    const err = await resp.json();
+                    showToast('删除失败: ' + (err.error || resp.statusText), 'error');
+                }
+            } catch (e) {
+                showToast('删除失败: ' + e.message, 'error');
+            }
+        }
+        
+        // 全选
+        function toggleSelectAll() {
+            const checked = document.getElementById('selectAll').checked;
+            document.querySelectorAll('.file-checkbox').forEach(cb => cb.checked = checked);
+        }
+        
+        // 上传
+        function showUpload() {
+            document.getElementById('uploadModal').classList.add('active');
+            document.getElementById('uploadProgress').innerHTML = '';
+        }
+        
+        function closeUpload() {
+            document.getElementById('uploadModal').classList.remove('active');
+        }
+        
+        function setupDragDrop() {
+            const zone = document.getElementById('uploadZone');
+            zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('dragover'); });
+            zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+            zone.addEventListener('drop', (e) => { e.preventDefault(); zone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
+        }
+        
+        function handleFileSelect(e) {
+            handleFiles(e.target.files);
+        }
+        
+        async function handleFiles(fileList) {
+            const progress = document.getElementById('uploadProgress');
+            
+            // 获取上传URL
+            try {
+                const resp = await fetch('/api/files/upload', {
+                    headers: getHeaders()
+                });
+                const data = await resp.json();
+                if (!data.attributes || !data.attributes.url) {
+                    showToast('获取上传地址失败', 'error');
+                    return;
+                }
+                
+                const uploadUrl = data.attributes.url;
+                
+                for (const file of fileList) {
+                    progress.innerHTML += `<p>⬆️ 正在上传: ${file.name}...</p>`;
+                    
+                    const formData = new FormData();
+                    formData.append('files', file);
+                    
+                    try {
+                        const uploadResp = await fetch(uploadUrl + `&directory=${encodeURIComponent(currentPath)}`, {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        if (uploadResp.ok) {
+                            progress.innerHTML += `<p style="color:#00c853">✅ ${file.name} 上传成功</p>`;
+                        } else {
+                            progress.innerHTML += `<p style="color:#ff1744">❌ ${file.name} 上传失败</p>`;
+                        }
+                    } catch (e) {
+                        progress.innerHTML += `<p style="color:#ff1744">❌ ${file.name}: ${e.message}</p>`;
+                    }
+                }
+                
+                refreshFiles();
+            } catch (e) {
+                showToast('上传失败: ' + e.message, 'error');
+            }
+        }
+        
+        // 输入框
+        function showInput(title, defaultValue, callback) {
+            document.getElementById('inputTitle').textContent = title;
+            document.getElementById('inputValue').value = defaultValue;
+            document.getElementById('inputModal').classList.add('active');
+            document.getElementById('inputValue').focus();
+            
+            document.getElementById('inputConfirm').onclick = () => {
+                callback(document.getElementById('inputValue').value);
+                closeInput();
+            };
+        }
+        
+        function closeInput() {
+            document.getElementById('inputModal').classList.remove('active');
+        }
+        
+        // 提示
+        function showToast(msg, type) {
+            const toast = document.createElement('div');
+            toast.className = 'toast ' + type;
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+    </script>
+</body>
+</html>

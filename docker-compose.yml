@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  pterodactyl-manager:
+    build: .
+    # 或使用镜像:
+    # image: ghcr.io/YOUR_USERNAME/pterodactyl-manager:latest
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+    restart: unless-stopped
