@@ -8,7 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY server.py .
 COPY static/ ./static/
 
-EXPOSE 8000
-ENV PORT=8000
+EXPOSE 7860
+ENV PORT=7860
 
 CMD ["python3", "server.py"]
