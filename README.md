@@ -17,7 +17,8 @@
 
 ## 快速开始
 
-<img width="1167" height="631" alt="image" src="https://github.com/user-attachments/assets/62fc8e97-5bab-40d7-8ccc-90476a70f15d" />
+<img width="1188" height="421" alt="image" src="https://github.com/user-attachments/assets/11764a9e-7785-4f27-b530-b53804b51d26" />
+
 
 
 ### Docker 运行
