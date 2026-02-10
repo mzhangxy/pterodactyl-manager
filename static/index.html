@@ -79,8 +79,13 @@
         #serverStatus.offline { color: #ff1744; }
         #serverStatus.starting { color: #ffab00; }
         #serverStatus.stopping { color: #ffab00; }
-        .power-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+        .power-buttons { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
         .power-buttons .btn { padding: 8px 15px; font-size: 13px; }
+        .auto-restart-toggle { display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: #0f3460; border-radius: 5px; cursor: pointer; font-size: 13px; }
+        .auto-restart-toggle input { width: 16px; height: 16px; cursor: pointer; }
+        .auto-restart-toggle.active { background: #00c853; color: #000; }
+        
+
     </style>
 </head>
 <body>
@@ -119,6 +124,11 @@
                 <button class="btn btn-danger" onclick="powerAction('stop')">⏹️ 关机</button>
                 <button class="btn btn-secondary" onclick="powerAction('kill')">⚠️ 强制终止</button>
                 <button class="btn btn-secondary" onclick="showCommandModal()">💻 控制台</button>
+
+                <label class="auto-restart-toggle">
+                    <input type="checkbox" id="autoRestartToggle" onchange="toggleAutoRestart()">
+                    <span>🔁 停机自动重启</span>
+                </label>
             </div>
         </div>
         
@@ -206,6 +216,8 @@
             </div>
         </div>
     </div>
+    
+
 
     <script>
         let currentPath = '/';
@@ -669,6 +681,9 @@
                         const memMB = ((r.memory_bytes || 0) / 1024 / 1024).toFixed(0);
                         resourcesEl.textContent = `CPU: ${cpuPercent}% | 内存: ${memMB} MB`;
                     }
+                    
+                    // 检查自动重启
+                    checkAutoRestart(state);
                 }
             } catch (e) {
                 console.error('Failed to get server status:', e);
@@ -740,6 +755,49 @@
         
         // 定时刷新状态
         setInterval(getServerStatus, 5000);
+        
+        // ==================== 停机自动重启 ====================
+        
+        let autoRestartEnabled = false;
+        let lastServerState = null;
+        
+        function toggleAutoRestart() {
+            autoRestartEnabled = document.getElementById('autoRestartToggle').checked;
+            const label = document.querySelector('.auto-restart-toggle');
+            if (autoRestartEnabled) {
+                label.classList.add('active');
+                showToast('停机自动重启已开启', 'success');
+            } else {
+                label.classList.remove('active');
+                showToast('停机自动重启已关闭', 'success');
+            }
+            // 保存到 localStorage
+            localStorage.setItem('ptero_auto_restart', autoRestartEnabled ? '1' : '0');
+        }
+        
+        function loadAutoRestartSetting() {
+            const saved = localStorage.getItem('ptero_auto_restart');
+            if (saved === '1') {
+                autoRestartEnabled = true;
+                document.getElementById('autoRestartToggle').checked = true;
+                document.querySelector('.auto-restart-toggle').classList.add('active');
+            }
+        }
+        
+        // 检查并自动重启
+        async function checkAutoRestart(currentState) {
+            if (!autoRestartEnabled) return;
+            
+            // 如果上一次是 running，现在是 offline，则自动重启
+            if (lastServerState === 'running' && currentState === 'offline') {
+                showToast('检测到服务器停机，正在自动重启...', 'success');
+                await powerAction('start');
+            }
+            lastServerState = currentState;
+        }
+        
+        // 初始化时加载设置
+        window.addEventListener('load', loadAutoRestartSetting);
     </script>
 </body>
 </html>

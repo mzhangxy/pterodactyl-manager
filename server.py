@@ -330,6 +330,8 @@ app.router.add_post('/api/files/upload', proxy_upload)
 app.router.add_post('/api/power', power_action)
 app.router.add_get('/api/resources', get_server_resources)
 app.router.add_post('/api/command', send_command)
+
+
 app.router.add_post('/api/files/compress', compress_files)
 app.router.add_post('/api/files/decompress', decompress_file)
 app.router.add_static('/static/', './static')
