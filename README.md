@@ -6,6 +6,8 @@
 
 ## 停机自启功能已被移除
 可以移步到：https://github.com/fascmer/ptero-monitor
+cf版（性能略差）：https://github.com/fascmer/pterodactyl-manager-cf
+https://github.com/fascmer/ptero-monitor-cf
 
 ## 功能
 
