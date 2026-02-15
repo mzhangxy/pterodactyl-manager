@@ -9,6 +9,7 @@
 
 cf版（性能略差）：
 https://github.com/fascmer/pterodactyl-manager-cf
+
 https://github.com/fascmer/ptero-monitor-cf
 
 ## 功能
