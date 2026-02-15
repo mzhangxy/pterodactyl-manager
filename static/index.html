@@ -103,8 +103,13 @@
                     <label>API Key</label>
                     <input type="password" id="apiKey" placeholder="ptlc_xxxxxx">
                 </div>
+                <div class="config-group">
+                    <label>代理地址（可选，绕过CF）</label>
+                    <input type="text" id="proxyUrl" placeholder="socks5://127.0.0.1:1080">
+                </div>
                 <button class="btn btn-primary" onclick="saveConfig()">保存配置</button>
             </div>
+            <p style="color:#888;font-size:12px;margin-top:10px;">💡 提示：如遇 Cloudflare 防护，可配置 SOCKS5/HTTP 代理绕过</p>
         </div>
         
         <!-- 服务器控制 -->
@@ -227,6 +232,7 @@
                     document.getElementById('apiUrl').value = config.api_url || '';
                     document.getElementById('serverId').value = config.server_id || '';
                     document.getElementById('apiKey').value = config.api_key || '';
+                    document.getElementById('proxyUrl').value = config.proxy_url || '';
                     if (config.api_url && config.server_id && config.api_key) {
                         refreshFiles();
                         getServerStatus();
@@ -242,7 +248,8 @@
             const config = {
                 api_url: document.getElementById('apiUrl').value,
                 server_id: document.getElementById('serverId').value,
-                api_key: document.getElementById('apiKey').value
+                api_key: document.getElementById('apiKey').value,
+                proxy_url: document.getElementById('proxyUrl').value
             };
             localStorage.setItem('ptero_config', JSON.stringify(config));
             showToast('配置已保存到浏览器', 'success');
@@ -255,18 +262,23 @@
             return {
                 api_url: document.getElementById('apiUrl').value,
                 server_id: document.getElementById('serverId').value,
-                api_key: document.getElementById('apiKey').value
+                api_key: document.getElementById('apiKey').value,
+                proxy_url: document.getElementById('proxyUrl').value
             };
         }
         
         // 获取请求头
         function getHeaders() {
             const config = getConfig();
-            return {
+            const headers = {
                 'X-API-URL': config.api_url,
                 'X-Server-ID': config.server_id,
                 'X-API-Key': config.api_key
             };
+            if (config.proxy_url) {
+                headers['X-Proxy-URL'] = config.proxy_url;
+            }
+            return headers;
         }
         
         // 刷新文件列表
